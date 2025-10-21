@@ -114,7 +114,4 @@ If you prefer not to use Docker, you can try to run the backend service directly
     npm start
     ```
 
-<!-- end list -->
-
-```
-```
+This [Docker Compose for Beginners](https://www.youtube.com/watch?v=KQUiICpM_u0) video may be helpful as it explains how to use `docker-compose.yml` files to run services, which is central to this project's setup.
