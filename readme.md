@@ -1,9 +1,4 @@
-Here is a README with instructions on how to start coding for the `trail-teller` project.
-
-This guide is based on the repository's structure, which includes a `docker-compose.yaml` file and a `backend` folder, indicating it's a [TypeScript](https://www.typescriptlang.org/)/Node.js project designed to run with Docker.
-
------
-
+````md
 # Trail Teller
 
 This project appears to be a web application built with TypeScript and Node.js, set up to run using Docker. This guide will walk you through setting up your local development environment.
@@ -11,26 +6,25 @@ This project appears to be a web application built with TypeScript and Node.js, 
 ## Prerequisites
 
 Before you begin, ensure you have the following tools installed on your system:
+* **Git**
+* **[Docker](https://docs.docker.com/get-docker/)**
+* **[Docker Compose](https://docs.docker.com/compose/install/)**
+* **[Node.js](https://nodejs.org/)** (for local development or if you choose not to use Docker)
 
-  * **Git**
-  * **[Docker](https://docs.docker.com/get-docker/)**
-  * **[Docker Compose](https://docs.docker.com/compose/install/)**
-  * **[Node.js](https://nodejs.org/)** (for local development or if you choose not to use Docker)
-
------
+---
 
 ## How to Start Coding (Docker Method)
 
 This is the recommended method as the project is already configured with Docker.
 
-### 1\. Clone the Repository
+### 1. Clone the Repository
 
 First, clone the project to your local machine and navigate into the directory:
 
 ```sh
-git clone https://github.com/jemiezler/trail-teller.git
+git clone [https://github.com/jemiezler/trail-teller.git](https://github.com/jemiezler/trail-teller.git)
 cd trail-teller
-```
+````
 
 ### 2\. Set Up Environment Variables
 
@@ -121,5 +115,7 @@ If you prefer not to use Docker, you can try to run the backend service directly
     npm start
     ```
 
-This [Docker Compose for Beginners](https://www.youtube.com/watch?v=KQUiICpM_u0) video may be helpful as it explains how to use `docker-compose.yml` files to run services, which is central to this project's setup.
-http://googleusercontent.com/youtube_content/0
+<!-- end list -->
+
+```
+```
