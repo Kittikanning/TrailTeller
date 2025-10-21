@@ -23,3 +23,17 @@ model User {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 }
+
+model Hotel {
+  hotel_id       Int @default(autoincrement()) @id 
+  guest_id       Int
+  room_id        String
+  name           String @unique
+  address        String @unique
+  cost           Int
+  check_in_date  DateTime @default(now())
+  check_out_date DateTime @default(now())
+  number_of_guests Int
+  status         String
+  img            Bytes?   
+}
