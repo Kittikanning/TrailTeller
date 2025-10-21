@@ -1,4 +1,3 @@
-````md
 # Trail Teller
 
 This project appears to be a web application built with TypeScript and Node.js, set up to run using Docker. This guide will walk you through setting up your local development environment.
@@ -17,14 +16,14 @@ Before you begin, ensure you have the following tools installed on your system:
 
 This is the recommended method as the project is already configured with Docker.
 
-### 1. Clone the Repository
+### 1\. Clone the Repository
 
 First, clone the project to your local machine and navigate into the directory:
 
 ```sh
 git clone [https://github.com/jemiezler/trail-teller.git](https://github.com/jemiezler/trail-teller.git)
 cd trail-teller
-````
+```
 
 ### 2\. Set Up Environment Variables
 
