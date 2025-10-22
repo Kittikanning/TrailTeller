@@ -1,31 +1,112 @@
 import { useState } from "react"
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from "react-native"
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from "react-native"
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import { API_ENDPOINTS } from "../config/api"
 
 export default function RegisterScreen({ onRegister, onNavigateToLogin }) {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState({})
 
-  const handleSubmit = () => {
-    if (!name || !email || !password || !confirmPassword) {
-      alert("Please fill in all fields")
+  const validateForm = () => {
+    const newErrors = {}
+
+    if (!name.trim()) {
+      newErrors.name = "Full name is required"
+    } else if (name.trim().length < 2) {
+      newErrors.name = "Name must be at least 2 characters"
+    }
+
+    if (!email.trim()) {
+      newErrors.email = "Email is required"
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      newErrors.email = "Invalid email format"
+    }
+
+    if (!password) {
+      newErrors.password = "Password is required"
+    } else if (password.length < 6) {
+      newErrors.password = "Password must be at least 6 characters"
+    }
+
+    if (!confirmPassword) {
+      newErrors.confirmPassword = "Please confirm your password"
+    } else if (password !== confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSubmit = async () => {
+    if (!validateForm()) {
       return
     }
 
-    if (password !== confirmPassword) {
-      alert("Passwords do not match")
-      return
-    }
+    setLoading(true)
 
-    onRegister()
+    try {
+      const response = await fetch(API_ENDPOINTS.REGISTER, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
+          password: password,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        if (data.message) {
+          Alert.alert("Registration Failed", data.message)
+        } else if (data.errors) {
+          // Handle multiple validation errors
+          const errorMessages = Object.values(data.errors).join("\n")
+          Alert.alert("Registration Failed", errorMessages)
+        } else {
+          Alert.alert("Registration Failed", "Unable to create account. Please try again.")
+        }
+        return
+      }
+
+      // Save token if returned
+      if (data.token) {
+        await AsyncStorage.setItem("authToken", data.token)
+      }
+
+      // Save user data
+      if (data.user) {
+        await AsyncStorage.setItem("userData", JSON.stringify(data.user))
+        await AsyncStorage.setItem("userEmail", data.user.email || email)
+      }
+
+      Alert.alert("Success", "Account created successfully!", [
+        {
+          text: "OK",
+          onPress: () => onRegister(),
+        },
+      ])
+    } catch (error) {
+      Alert.alert("Error", error.message || "Something went wrong. Please try again.")
+      console.error("Registration error:", error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={onNavigateToLogin} style={styles.backButton}>
+        <TouchableOpacity onPress={onNavigateToLogin} style={styles.backButton} disabled={loading}>
           <Text style={styles.backArrow}>←</Text>
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
@@ -55,64 +136,92 @@ export default function RegisterScreen({ onRegister, onNavigateToLogin }) {
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Full Name</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, errors.name && styles.inputError]}
                 placeholder="John Doe"
                 placeholderTextColor="#999"
                 value={name}
-                onChangeText={setName}
+                onChangeText={(text) => {
+                  setName(text)
+                  if (errors.name) setErrors({ ...errors, name: "" })
+                }}
                 autoCapitalize="words"
                 autoComplete="name"
+                editable={!loading}
               />
+              {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
             </View>
 
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Email</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, errors.email && styles.inputError]}
                 placeholder="you@example.com"
                 placeholderTextColor="#999"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => {
+                  setEmail(text)
+                  if (errors.email) setErrors({ ...errors, email: "" })
+                }}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
+                editable={!loading}
               />
+              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
             </View>
 
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Password</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, errors.password && styles.inputError]}
                 placeholder="Enter password"
                 placeholderTextColor="#999"
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(text) => {
+                  setPassword(text)
+                  if (errors.password) setErrors({ ...errors, password: "" })
+                }}
                 secureTextEntry={true}
                 autoCapitalize="none"
                 textContentType="none"
                 autoCorrect={false}
                 autoComplete="off"
+                editable={!loading}
               />
+              {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
             </View>
 
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>Confirm Password</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, errors.confirmPassword && styles.inputError]}
                 placeholder="Confirm password"
                 placeholderTextColor="#999"
                 value={confirmPassword}
-                onChangeText={setConfirmPassword}
+                onChangeText={(text) => {
+                  setConfirmPassword(text)
+                  if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: "" })
+                }}
                 secureTextEntry={true}
                 autoCapitalize="none"
                 textContentType="none"
                 autoCorrect={false}
                 autoComplete="off"
+                editable={!loading}
               />
+              {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
             </View>
 
-            <TouchableOpacity style={styles.createButton} onPress={handleSubmit}>
-              <Text style={styles.createButtonText}>Create Account</Text>
+            <TouchableOpacity 
+              style={[styles.createButton, loading && styles.buttonDisabled]} 
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.createButtonText}>Create Account</Text>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -225,6 +334,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#000",
   },
+  inputError: {
+    borderColor: "#FF3B30",
+  },
+  errorText: {
+    fontSize: 12,
+    color: "#FF3B30",
+    marginTop: 4,
+  },
   createButton: {
     height: 48,
     backgroundColor: "#FF6B6B",
@@ -237,6 +354,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   createButtonText: {
     fontSize: 16,

@@ -1,6 +1,7 @@
 import { useState } from "react"
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Platform } from "react-native"
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Platform, Alert } from "react-native"
 import DateTimePicker from '@react-native-community/datetimepicker'
+import AsyncStorage from "@react-native-async-storage/async-storage"
 
 export default function PlannerScreen({ onBack, onNavigateToTripDetails }) {
   const [step, setStep] = useState("setup")
@@ -11,20 +12,122 @@ export default function PlannerScreen({ onBack, onNavigateToTripDetails }) {
   const [travelers, setTravelers] = useState("2")
   const [showStartDatePicker, setShowStartDatePicker] = useState(false)
   const [showEndDatePicker, setShowEndDatePicker] = useState(false)
+  const [tripData, setTripData] = useState(null)
+  const [errors, setErrors] = useState({})
 
-  const handleGenerate = () => {
-    if (!destination || !budget) {
-      alert("Please fill in all required fields")
-      return
+  const validateForm = () => {
+    const newErrors = {}
+    
+    if (!destination.trim()) {
+      newErrors.destination = "Destination is required"
     }
-    setStep("generating")
-    setTimeout(() => {
-      setStep("preview")
-    }, 2000)
+    
+    if (!budget || parseInt(budget) <= 0) {
+      newErrors.budget = "Budget must be greater than 0"
+    }
+    
+    if (endDate < startDate) {
+      newErrors.dates = "End date must be after start date"
+    }
+    
+    if (parseInt(travelers) < 1) {
+      newErrors.travelers = "At least 1 traveler is required"
+    }
+    
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
 
-  const handleConfirm = () => {
-    onNavigateToTripDetails()
+  const handleGenerate = async () => {
+    if (!validateForm()) {
+      return
+    }
+    
+    setStep("generating")
+    
+    try {
+      const token = await AsyncStorage.getItem("authToken")
+      
+      if (!token) {
+        Alert.alert("Error", "Please login first")
+        setStep("setup")
+        return
+      }
+
+      const payload = {
+        destination: destination.trim(),
+        budget: parseInt(budget),
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
+        travelers: parseInt(travelers),
+      }
+
+      const response = await fetch("https://your-api.com/api/trips/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to generate trip")
+      }
+
+      // Save trip data
+      if (data.trip) {
+        setTripData(data.trip)
+        await AsyncStorage.setItem("currentTrip", JSON.stringify(data.trip))
+      }
+
+      // Simulate AI generation time
+      setTimeout(() => {
+        setStep("preview")
+      }, 2000)
+    } catch (error) {
+      console.error("Generate trip error:", error)
+      Alert.alert("Error", error.message || "Failed to generate trip")
+      setStep("setup")
+    }
+  }
+
+  const handleConfirm = async () => {
+    try {
+      const token = await AsyncStorage.getItem("authToken")
+      
+      if (!token || !tripData) {
+        Alert.alert("Error", "Trip data missing")
+        return
+      }
+
+      const response = await fetch("https://your-api.com/api/trips/confirm", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          tripId: tripData.id,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to confirm trip")
+      }
+
+      // Save confirmed trip
+      await AsyncStorage.setItem("currentTrip", JSON.stringify(data.trip))
+      
+      onNavigateToTripDetails()
+    } catch (error) {
+      console.error("Confirm trip error:", error)
+      Alert.alert("Error", error.message || "Failed to confirm trip")
+    }
   }
 
   const formatDate = (date) => {
@@ -42,6 +145,9 @@ export default function PlannerScreen({ onBack, onNavigateToTripDetails }) {
       if (selectedDate > endDate) {
         setEndDate(selectedDate)
       }
+      if (errors.dates) {
+        setErrors({ ...errors, dates: "" })
+      }
     }
   }
 
@@ -49,7 +155,21 @@ export default function PlannerScreen({ onBack, onNavigateToTripDetails }) {
     setShowEndDatePicker(Platform.OS === 'ios')
     if (selectedDate) {
       setEndDate(selectedDate)
+      if (errors.dates) {
+        setErrors({ ...errors, dates: "" })
+      }
     }
+  }
+
+  const calculateDuration = () => {
+    const diffTime = Math.abs(endDate - startDate)
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays
+  }
+
+  const calculateTotalCost = () => {
+    if (!tripData) return budget
+    return tripData.totalCost || budget
   }
 
   // Generating Screen
@@ -74,6 +194,25 @@ export default function PlannerScreen({ onBack, onNavigateToTripDetails }) {
 
   // Preview Screen
   if (step === "preview") {
+    const flights = tripData?.flights || [{
+      route: `Bangkok → ${destination}`,
+      airline: "Thai Airways",
+      duration: "11h 30m",
+      price: 1200
+    }]
+
+    const accommodation = tripData?.accommodation || {
+      name: "Beachfront Hotel",
+      rating: 4,
+      nights: calculateDuration(),
+      price: 1250
+    }
+
+    const activities = tripData?.activities || [
+      { name: "City Tour", day: 1, time: "9:00 AM", price: 150 },
+      { name: "Beach Adventure", day: 2, time: "10:00 AM", price: 250 }
+    ]
+
     return (
       <View style={styles.container}>
         <View style={styles.previewHeader}>
@@ -82,7 +221,7 @@ export default function PlannerScreen({ onBack, onNavigateToTripDetails }) {
             <Text style={styles.backTextWhite}>Back</Text>
           </TouchableOpacity>
           <Text style={styles.previewTitle}>Your Trip Preview</Text>
-          <Text style={styles.previewSubtitle}>{destination || "Honolulu, Hawaii"}</Text>
+          <Text style={styles.previewSubtitle}>{destination}</Text>
         </View>
 
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.previewContent}>
@@ -90,7 +229,7 @@ export default function PlannerScreen({ onBack, onNavigateToTripDetails }) {
             <View style={styles.summaryGrid}>
               <View style={styles.summaryItem}>
                 <Text style={styles.summaryLabel}>Duration</Text>
-                <Text style={styles.summaryValue}>5 Days</Text>
+                <Text style={styles.summaryValue}>{calculateDuration()} Days</Text>
               </View>
               <View style={styles.summaryItem}>
                 <Text style={styles.summaryLabel}>Travelers</Text>
@@ -102,7 +241,7 @@ export default function PlannerScreen({ onBack, onNavigateToTripDetails }) {
               </View>
               <View style={styles.summaryItem}>
                 <Text style={styles.summaryLabel}>Total Cost</Text>
-                <Text style={styles.summaryValuePrimary}>฿2,850</Text>
+                <Text style={styles.summaryValuePrimary}>฿{calculateTotalCost()}</Text>
               </View>
             </View>
           </View>
@@ -112,13 +251,15 @@ export default function PlannerScreen({ onBack, onNavigateToTripDetails }) {
               <Text style={styles.cardIcon}>✈️</Text>
               <Text style={styles.cardTitle}>Flights</Text>
             </View>
-            <View style={styles.itemRow}>
-              <View style={styles.itemLeft}>
-                <Text style={styles.itemTitle}>Bangkok → {destination || "Honolulu"}</Text>
-                <Text style={styles.itemSubtitle}>Thai Airways • 11h 30m</Text>
+            {flights.map((flight, idx) => (
+              <View key={idx} style={styles.itemRow}>
+                <View style={styles.itemLeft}>
+                  <Text style={styles.itemTitle}>{flight.route}</Text>
+                  <Text style={styles.itemSubtitle}>{flight.airline} • {flight.duration}</Text>
+                </View>
+                <Text style={styles.itemPrice}>฿{flight.price}</Text>
               </View>
-              <Text style={styles.itemPrice}>฿1,200</Text>
-            </View>
+            ))}
           </View>
 
           <View style={styles.card}>
@@ -128,10 +269,10 @@ export default function PlannerScreen({ onBack, onNavigateToTripDetails }) {
             </View>
             <View style={styles.itemRow}>
               <View style={styles.itemLeft}>
-                <Text style={styles.itemTitle}>Beachfront Hotel</Text>
-                <Text style={styles.itemSubtitle}>⭐⭐⭐⭐ • 5 nights</Text>
+                <Text style={styles.itemTitle}>{accommodation.name}</Text>
+                <Text style={styles.itemSubtitle}>{'⭐'.repeat(accommodation.rating)} • {accommodation.nights} nights</Text>
               </View>
-              <Text style={styles.itemPrice}>฿1,250</Text>
+              <Text style={styles.itemPrice}>฿{accommodation.price}</Text>
             </View>
           </View>
 
@@ -141,20 +282,15 @@ export default function PlannerScreen({ onBack, onNavigateToTripDetails }) {
               <Text style={styles.cardTitle}>Activities</Text>
             </View>
             <View style={styles.activitiesList}>
-              <View style={styles.itemRow}>
-                <View style={styles.itemLeft}>
-                  <Text style={styles.itemTitle}>City Tour</Text>
-                  <Text style={styles.itemSubtitle}>Day 1 • 9:00 AM</Text>
+              {activities.map((activity, idx) => (
+                <View key={idx} style={styles.itemRow}>
+                  <View style={styles.itemLeft}>
+                    <Text style={styles.itemTitle}>{activity.name}</Text>
+                    <Text style={styles.itemSubtitle}>Day {activity.day} • {activity.time}</Text>
+                  </View>
+                  <Text style={styles.itemPrice}>฿{activity.price}</Text>
                 </View>
-                <Text style={styles.itemPrice}>฿150</Text>
-              </View>
-              <View style={styles.itemRow}>
-                <View style={styles.itemLeft}>
-                  <Text style={styles.itemTitle}>Beach Adventure</Text>
-                  <Text style={styles.itemSubtitle}>Day 2 • 10:00 AM</Text>
-                </View>
-                <Text style={styles.itemPrice}>฿250</Text>
-              </View>
+              ))}
             </View>
           </View>
 
@@ -195,12 +331,16 @@ export default function PlannerScreen({ onBack, onNavigateToTripDetails }) {
               <Text style={styles.label}>Where do you want to go?</Text>
             </View>
             <TextInput
-              style={styles.input}
+              style={[styles.input, errors.destination && styles.inputError]}
               placeholder="e.g., Tokyo, Paris, New York"
               placeholderTextColor="#999"
               value={destination}
-              onChangeText={setDestination}
+              onChangeText={(text) => {
+                setDestination(text)
+                if (errors.destination) setErrors({ ...errors, destination: "" })
+              }}
             />
+            {errors.destination && <Text style={styles.errorText}>{errors.destination}</Text>}
           </View>
 
           {/* Dates */}
@@ -232,15 +372,16 @@ export default function PlannerScreen({ onBack, onNavigateToTripDetails }) {
                 </TouchableOpacity>
               </View>
             </View>
+            {errors.dates && <Text style={styles.errorText}>{errors.dates}</Text>}
           </View>
 
           {/* Budget */}
           <View style={styles.fieldContainer}>
             <View style={styles.labelRow}>
               <Text style={styles.labelIcon}>💰</Text>
-              <Text style={styles.label}>What your budget?</Text>
+              <Text style={styles.label}>What s your budget?</Text>
             </View>
-            <View style={styles.budgetInputContainer}>
+            <View style={[styles.budgetInputContainer, errors.budget && styles.inputError]}>
               <Text style={styles.currencySymbol}>฿</Text>
               <TextInput
                 style={styles.budgetInput}
@@ -248,9 +389,13 @@ export default function PlannerScreen({ onBack, onNavigateToTripDetails }) {
                 placeholderTextColor="#999"
                 keyboardType="numeric"
                 value={budget}
-                onChangeText={setBudget}
+                onChangeText={(text) => {
+                  setBudget(text)
+                  if (errors.budget) setErrors({ ...errors, budget: "" })
+                }}
               />
             </View>
+            {errors.budget && <Text style={styles.errorText}>{errors.budget}</Text>}
             <View style={styles.budgetSuggestions}>
               {['2000', '3000', '5000', '10000'].map((amount) => (
                 <TouchableOpacity
@@ -259,7 +404,10 @@ export default function PlannerScreen({ onBack, onNavigateToTripDetails }) {
                     styles.budgetChip,
                     budget === amount && styles.budgetChipActive
                   ]}
-                  onPress={() => setBudget(amount)}
+                  onPress={() => {
+                    setBudget(amount)
+                    if (errors.budget) setErrors({ ...errors, budget: "" })
+                  }}
                 >
                   <Text style={[
                     styles.budgetChipText,
@@ -281,7 +429,11 @@ export default function PlannerScreen({ onBack, onNavigateToTripDetails }) {
             <View style={styles.travelerCounter}>
               <TouchableOpacity
                 style={styles.counterButton}
-                onPress={() => setTravelers(Math.max(1, parseInt(travelers || "1") - 1).toString())}
+                onPress={() => {
+                  const newVal = Math.max(1, parseInt(travelers || "1") - 1).toString()
+                  setTravelers(newVal)
+                  if (errors.travelers) setErrors({ ...errors, travelers: "" })
+                }}
               >
                 <Text style={styles.counterButtonText}>−</Text>
               </TouchableOpacity>
@@ -291,11 +443,16 @@ export default function PlannerScreen({ onBack, onNavigateToTripDetails }) {
               </View>
               <TouchableOpacity
                 style={styles.counterButton}
-                onPress={() => setTravelers((parseInt(travelers || "1") + 1).toString())}
+                onPress={() => {
+                  const newVal = (parseInt(travelers || "1") + 1).toString()
+                  setTravelers(newVal)
+                  if (errors.travelers) setErrors({ ...errors, travelers: "" })
+                }}
               >
                 <Text style={styles.counterButtonText}>+</Text>
               </TouchableOpacity>
             </View>
+            {errors.travelers && <Text style={styles.errorText}>{errors.travelers}</Text>}
           </View>
         </View>
 
@@ -457,6 +614,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 16,
     color: "#000",
+  },
+  inputError: {
+    borderColor: "#FF3B30",
+  },
+  errorText: {
+    fontSize: 12,
+    color: "#FF3B30",
+    marginTop: 4,
   },
   dateRow: {
     flexDirection: "row",

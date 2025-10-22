@@ -8,6 +8,13 @@
       "when": 1760327319131,
       "tag": "0000_tough_rocket_raccoon",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1760509014140,
+      "tag": "0001_famous_wind_dancer",
+      "breakpoints": true
     }
   ]
 }

@@ -1,46 +1,216 @@
-import { useState } from "react"
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from "react-native"
-
-const activities = [
-  {
-    day: 1,
-    items: [
-      { id: 1, time: "9:00 AM", title: "Pearl Harbor Tour", location: "Pearl Harbor", cost: 150, completed: false },
-      { id: 2, time: "2:00 PM", title: "Waikiki Beach", location: "Waikiki", cost: 0, completed: false },
-      { id: 3, time: "7:00 PM", title: "Dinner at Duke's", location: "Waikiki", cost: 200, completed: false },
-    ],
-  },
-  {
-    day: 2,
-    items: [
-      { id: 4, time: "10:00 AM", title: "Snorkeling Adventure", location: "Hanauma Bay", cost: 250, completed: false },
-      { id: 5, time: "3:00 PM", title: "Diamond Head Hike", location: "Diamond Head", cost: 50, completed: false },
-    ],
-  },
-  {
-    day: 3,
-    items: [
-      { id: 6, time: "8:00 AM", title: "Sunrise at Lanikai Beach", location: "Lanikai", cost: 0, completed: false },
-      { id: 7, time: "12:00 PM", title: "Lunch at Local Market", location: "Honolulu", cost: 150, completed: false },
-    ],
-  },
-  {
-    day: 4,
-    items: [],
-  },
-]
+import { useState, useEffect } from "react"
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, ActivityIndicator, Alert } from "react-native"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 
 export default function TripDetailsScreen({ onBack }) {
   const [selectedDay, setSelectedDay] = useState(1)
   const [showBudget, setShowBudget] = useState(false)
   const [checkedItems, setCheckedItems] = useState([])
+  const [tripData, setTripData] = useState(null)
+  const [activities, setActivities] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [updating, setUpdating] = useState(false)
+
+  // Fetch trip details
+  useEffect(() => {
+    fetchTripDetails()
+  }, [])
+
+  const fetchTripDetails = async () => {
+    try {
+      setLoading(true)
+      const token = await AsyncStorage.getItem("authToken")
+      const currentTrip = await AsyncStorage.getItem("currentTrip")
+
+      if (!token || !currentTrip) {
+        Alert.alert("Error", "Trip data not found")
+        return
+      }
+
+      const trip = JSON.parse(currentTrip)
+      const response = await fetch(`https://your-api.com/api/trips/${trip.id}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to fetch trip details")
+      }
+
+      setTripData(data.trip)
+      setActivities(data.trip.activities || [])
+      
+      // Set checked items from API
+      const checkedIds = data.trip.activities
+        ?.filter(activity => activity.completed)
+        .map(activity => activity.id) || []
+      setCheckedItems(checkedIds)
+    } catch (error) {
+      console.error("Fetch trip details error:", error)
+      Alert.alert("Error", error.message || "Failed to load trip details")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCheckItem = async (id) => {
+    try {
+      setUpdating(true)
+      const token = await AsyncStorage.getItem("authToken")
+      const currentTrip = await AsyncStorage.getItem("currentTrip")
+
+      if (!token || !currentTrip) {
+        Alert.alert("Error", "Session expired")
+        return
+      }
+
+      const trip = JSON.parse(currentTrip)
+      const isCompleting = !checkedItems.includes(id)
+
+      const response = await fetch(`https://your-api.com/api/trips/${trip.id}/activities/${id}/toggle`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          completed: isCompleting,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to update activity")
+      }
+
+      // Update local state
+      setCheckedItems((prev) => 
+        isCompleting 
+          ? [...prev, id] 
+          : prev.filter((i) => i !== id)
+      )
+
+      // Update activities with new completed status
+      setActivities((prev) =>
+        prev.map((day) => ({
+          ...day,
+          items: day.items.map((item) =>
+            item.id === id ? { ...item, completed: isCompleting } : item
+          ),
+        }))
+      )
+    } catch (error) {
+      console.error("Toggle activity error:", error)
+      Alert.alert("Error", error.message || "Failed to update activity")
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const handleAddActivity = () => {
+    Alert.prompt("Add Activity", "Enter activity name:", [
+      {
+        text: "Cancel",
+        onPress: () => {},
+        style: "cancel",
+      },
+      {
+        text: "Add",
+        onPress: (title) => addActivity(title),
+      },
+    ])
+  }
+
+  const addActivity = async (title) => {
+    if (!title.trim()) return
+
+    try {
+      setUpdating(true)
+      const token = await AsyncStorage.getItem("authToken")
+      const currentTrip = await AsyncStorage.getItem("currentTrip")
+
+      if (!token || !currentTrip) {
+        Alert.alert("Error", "Session expired")
+        return
+      }
+
+      const trip = JSON.parse(currentTrip)
+      const response = await fetch(`https://your-api.com/api/trips/${trip.id}/activities`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: title.trim(),
+          day: selectedDay,
+          time: "9:00 AM",
+          location: "",
+          cost: 0,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to add activity")
+      }
+
+      // Refresh activities
+      setActivities((prev) => [
+        ...prev,
+        {
+          day: selectedDay,
+          items: [data.activity],
+        },
+      ])
+
+      Alert.alert("Success", "Activity added successfully")
+    } catch (error) {
+      console.error("Add activity error:", error)
+      Alert.alert("Error", error.message || "Failed to add activity")
+    } finally {
+      setUpdating(false)
+    }
+  }
 
   const currentDayActivities = activities.find((a) => a.day === selectedDay)?.items || []
-  const totalCost = activities.reduce((sum, day) => sum + day.items.reduce((daySum, item) => daySum + item.cost, 0), 0)
+  
+  const totalCost = activities.reduce((sum, day) => 
+    sum + day.items.reduce((daySum, item) => daySum + item.cost, 0), 0
+  )
 
-  const handleCheckItem = (id) => {
-    setCheckedItems((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]))
+  const getTotalBudget = () => {
+    if (!tripData) return 0
+    return (tripData.flights?.price || 0) + (tripData.accommodation?.price || 0) + totalCost
   }
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <Text style={styles.backArrow}>←</Text>
+            <Text style={styles.backText}>Back</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Loading trip details...</Text>
+        </View>
+      </View>
+    )
+  }
+
+  const tripTitle = tripData?.destination || "Trip"
+  const tripDates = tripData?.dateRange || "Dates"
+  const totalDays = tripData?.totalDays || 4
 
   return (
     <View style={styles.container}>
@@ -53,8 +223,8 @@ export default function TripDetailsScreen({ onBack }) {
         
         <View style={styles.headerContent}>
           <View style={styles.headerLeft}>
-            <Text style={styles.headerTitle}>Honolulu Trip</Text>
-            <Text style={styles.headerSubtitle}>Jun 11 - 16, 2023</Text>
+            <Text style={styles.headerTitle}>{tripTitle} Trip</Text>
+            <Text style={styles.headerSubtitle}>{tripDates}</Text>
           </View>
           <TouchableOpacity style={styles.budgetButton} onPress={() => setShowBudget(true)}>
             <Text style={styles.budgetIcon}>💰</Text>
@@ -82,11 +252,11 @@ export default function TripDetailsScreen({ onBack }) {
             <View style={styles.budgetList}>
               <View style={styles.budgetItem}>
                 <Text style={styles.budgetLabel}>Flights</Text>
-                <Text style={styles.budgetValue}>฿1,200</Text>
+                <Text style={styles.budgetValue}>฿{tripData?.flights?.price || 0}</Text>
               </View>
               <View style={styles.budgetItem}>
                 <Text style={styles.budgetLabel}>Hotels</Text>
-                <Text style={styles.budgetValue}>฿1,250</Text>
+                <Text style={styles.budgetValue}>฿{tripData?.accommodation?.price || 0}</Text>
               </View>
               <View style={styles.budgetItem}>
                 <Text style={styles.budgetLabel}>Activities</Text>
@@ -94,7 +264,7 @@ export default function TripDetailsScreen({ onBack }) {
               </View>
               <View style={styles.budgetTotal}>
                 <Text style={styles.budgetTotalLabel}>Total Cost</Text>
-                <Text style={styles.budgetTotalValue}>฿{1200 + 1250 + totalCost}</Text>
+                <Text style={styles.budgetTotalValue}>฿{getTotalBudget()}</Text>
               </View>
             </View>
 
@@ -108,7 +278,7 @@ export default function TripDetailsScreen({ onBack }) {
       {/* Day Selector */}
       <View style={styles.daySelectorContainer}>
         <View style={styles.daySelector}>
-          {[1, 2, 3, 4].map((day) => (
+          {Array.from({ length: totalDays }, (_, i) => i + 1).map((day) => (
             <TouchableOpacity
               key={day}
               onPress={() => setSelectedDay(day)}
@@ -134,7 +304,11 @@ export default function TripDetailsScreen({ onBack }) {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         <View style={styles.activitiesHeader}>
           <Text style={styles.activitiesTitle}>Plan Activities</Text>
-          <TouchableOpacity style={styles.addButton}>
+          <TouchableOpacity 
+            style={styles.addButton}
+            onPress={handleAddActivity}
+            disabled={updating}
+          >
             <Text style={styles.addIcon}>➕</Text>
             <Text style={styles.addText}>Add</Text>
           </TouchableOpacity>
@@ -151,9 +325,10 @@ export default function TripDetailsScreen({ onBack }) {
                 <View style={styles.activityContent}>
                   <TouchableOpacity
                     onPress={() => handleCheckItem(activity.id)}
+                    disabled={updating}
                     style={styles.checkbox}
                   >
-                    {checkedItems.includes(activity.id) && (
+                    {(checkedItems.includes(activity.id) || activity.completed) && (
                       <Text style={styles.checkmark}>✓</Text>
                     )}
                   </TouchableOpacity>
@@ -163,7 +338,7 @@ export default function TripDetailsScreen({ onBack }) {
                       <Text
                         style={[
                           styles.activityTitle,
-                          checkedItems.includes(activity.id) && styles.activityTitleCompleted
+                          (checkedItems.includes(activity.id) || activity.completed) && styles.activityTitleCompleted
                         ]}
                       >
                         {activity.title}
@@ -195,9 +370,15 @@ export default function TripDetailsScreen({ onBack }) {
 
       {/* Fixed Bottom Button */}
       <View style={styles.fixedBottom}>
-        <TouchableOpacity style={styles.nextButton}>
+        <TouchableOpacity 
+          style={styles.nextButton}
+          disabled={selectedDay >= totalDays}
+          onPress={() => setSelectedDay(selectedDay + 1)}
+        >
           <Text style={styles.nextButtonIcon}>📅</Text>
-          <Text style={styles.nextButtonText}>Next Day</Text>
+          <Text style={styles.nextButtonText}>
+            {selectedDay >= totalDays ? "Trip Complete" : "Next Day"}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -264,6 +445,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
     color: "#fff",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#666",
   },
   modalOverlay: {
     flex: 1,

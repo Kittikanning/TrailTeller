@@ -5,6 +5,9 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+console.log('🔗 Connecting to DB with URL:', process.env.DATABASE_URL);
+
+
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {

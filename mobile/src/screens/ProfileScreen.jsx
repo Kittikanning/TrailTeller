@@ -1,6 +1,185 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from "react-native"
+import { useEffect, useState } from "react"
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, RefreshControl } from "react-native"
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import { API_ENDPOINTS } from "../config/api"
 
 export default function ProfileScreen({ onBack, onLogout }) {
+  const [userData, setUserData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [stats, setStats] = useState({
+    trips: 0,
+    countries: 0,
+    days: 0,
+  })
+
+  // Fetch user profile data
+  const fetchUserProfile = async () => {
+    try {
+      const token = await AsyncStorage.getItem("authToken")
+      
+      if (!token) {
+        Alert.alert("Error", "No authentication token found")
+        return
+      }
+
+      const response = await fetch(API_ENDPOINTS.PROFILE, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to fetch profile")
+      }
+
+      // Set user data
+      if (data.user) {
+        setUserData(data.user)
+        await AsyncStorage.setItem("userData", JSON.stringify(data.user))
+      }
+
+      // Set stats
+      if (data.stats) {
+        setStats({
+          trips: data.stats.trips || 0,
+          countries: data.stats.countries || 0,
+          days: data.stats.days || 0,
+        })
+      }
+    } catch (error) {
+      console.error("Fetch profile error:", error)
+      Alert.alert("Error", error.message || "Failed to load profile")
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }
+
+  // Load local data on mount
+  const loadLocalData = async () => {
+    try {
+      const localUserData = await AsyncStorage.getItem("userData")
+      if (localUserData) {
+        setUserData(JSON.parse(localUserData))
+      }
+    } catch (error) {
+      console.error("Error loading local data:", error)
+    }
+  }
+
+  useEffect(() => {
+    loadLocalData()
+    fetchUserProfile()
+  }, [])
+
+  // Handle refresh
+  const onRefresh = () => {
+    setRefreshing(true)
+    fetchUserProfile()
+  }
+
+  // Handle logout
+  const handleLogout = async () => {
+    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+      {
+        text: "Cancel",
+        onPress: () => {},
+        style: "cancel",
+      },
+      {
+        text: "Sign Out",
+        onPress: async () => {
+          try {
+            const token = await AsyncStorage.getItem("authToken")
+
+            // Call logout API
+            if (token) {
+              await fetch("https://your-api.com/api/logout", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+              }).catch(err => console.error("Logout API error:", err))
+            }
+
+            // Clear local storage
+            await AsyncStorage.removeItem("authToken")
+            await AsyncStorage.removeItem("userData")
+            await AsyncStorage.removeItem("userEmail")
+
+            onLogout()
+          } catch (error) {
+            Alert.alert("Error", "Failed to sign out")
+            console.error("Logout error:", error)
+          }
+        },
+        style: "destructive",
+      },
+    ])
+  }
+
+  // Handle edit profile navigation
+  const handleEditProfile = () => {
+    Alert.alert("Edit Profile", "Navigate to edit profile screen")
+  }
+
+  // Handle travel preferences navigation
+  const handleTravelPreferences = () => {
+    Alert.alert("Travel Preferences", "Navigate to travel preferences screen")
+  }
+
+  // Handle notifications navigation
+  const handleNotifications = () => {
+    Alert.alert("Notifications", "Navigate to notifications settings")
+  }
+
+  // Handle payment methods navigation
+  const handlePaymentMethods = () => {
+    Alert.alert("Payment Methods", "Navigate to payment methods screen")
+  }
+
+  // Handle app settings navigation
+  const handleAppSettings = () => {
+    Alert.alert("App Settings", "Navigate to app settings")
+  }
+
+  // Handle help center navigation
+  const handleHelpCenter = () => {
+    Alert.alert("Help Center", "Navigate to help center")
+  }
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <Text style={styles.backArrow}>←</Text>
+            <Text style={styles.backText}>Back</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+      </View>
+    )
+  }
+
+  const getInitials = (name) => {
+    return name
+      ?.split(" ")
+      .map(n => n.charAt(0))
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || "U"
+  }
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -12,29 +191,33 @@ export default function ProfileScreen({ onBack, onLogout }) {
 
         <View style={styles.profileInfo}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>JD</Text>
+            <Text style={styles.avatarText}>{getInitials(userData?.name)}</Text>
           </View>
           <View style={styles.userInfo}>
-            <Text style={styles.userName}>John Doe</Text>
-            <Text style={styles.userEmail}>john.doe@example.com</Text>
+            <Text style={styles.userName}>{userData?.name || "User"}</Text>
+            <Text style={styles.userEmail}>{userData?.email || "email@example.com"}</Text>
           </View>
         </View>
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
         {/* Stats Card */}
         <View style={styles.statsCard}>
           <View style={styles.statsGrid}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>12</Text>
+              <Text style={styles.statValue}>{stats.trips}</Text>
               <Text style={styles.statLabel}>Trips</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statValueAccent}>8</Text>
+              <Text style={styles.statValueAccent}>{stats.countries}</Text>
               <Text style={styles.statLabel}>Countries</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>45</Text>
+              <Text style={styles.statValue}>{stats.days}</Text>
               <Text style={styles.statLabel}>Days</Text>
             </View>
           </View>
@@ -44,7 +227,7 @@ export default function ProfileScreen({ onBack, onLogout }) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>ACCOUNT</Text>
           <View style={styles.card}>
-            <TouchableOpacity style={styles.menuItem}>
+            <TouchableOpacity style={styles.menuItem} onPress={handleEditProfile}>
               <View style={[styles.menuIcon, styles.menuIconPrimary]}>
                 <Text style={styles.iconText}>👤</Text>
               </View>
@@ -52,11 +235,12 @@ export default function ProfileScreen({ onBack, onLogout }) {
                 <Text style={styles.menuTitle}>Edit Profile</Text>
                 <Text style={styles.menuSubtitle}>Update your information</Text>
               </View>
+              <Text style={styles.arrowIcon}>›</Text>
             </TouchableOpacity>
 
             <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.menuItem}>
+            <TouchableOpacity style={styles.menuItem} onPress={handleTravelPreferences}>
               <View style={[styles.menuIcon, styles.menuIconAccent]}>
                 <Text style={styles.iconText}>📍</Text>
               </View>
@@ -64,6 +248,7 @@ export default function ProfileScreen({ onBack, onLogout }) {
                 <Text style={styles.menuTitle}>Travel Preferences</Text>
                 <Text style={styles.menuSubtitle}>Set your travel style</Text>
               </View>
+              <Text style={styles.arrowIcon}>›</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -72,7 +257,7 @@ export default function ProfileScreen({ onBack, onLogout }) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>SETTINGS</Text>
           <View style={styles.card}>
-            <TouchableOpacity style={styles.menuItem}>
+            <TouchableOpacity style={styles.menuItem} onPress={handleNotifications}>
               <View style={[styles.menuIcon, styles.menuIconPrimary]}>
                 <Text style={styles.iconText}>🔔</Text>
               </View>
@@ -80,11 +265,12 @@ export default function ProfileScreen({ onBack, onLogout }) {
                 <Text style={styles.menuTitle}>Notifications</Text>
                 <Text style={styles.menuSubtitle}>Manage alerts</Text>
               </View>
+              <Text style={styles.arrowIcon}>›</Text>
             </TouchableOpacity>
 
             <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.menuItem}>
+            <TouchableOpacity style={styles.menuItem} onPress={handlePaymentMethods}>
               <View style={[styles.menuIcon, styles.menuIconAccent]}>
                 <Text style={styles.iconText}>💳</Text>
               </View>
@@ -92,11 +278,12 @@ export default function ProfileScreen({ onBack, onLogout }) {
                 <Text style={styles.menuTitle}>Payment Methods</Text>
                 <Text style={styles.menuSubtitle}>Manage cards</Text>
               </View>
+              <Text style={styles.arrowIcon}>›</Text>
             </TouchableOpacity>
 
             <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.menuItem}>
+            <TouchableOpacity style={styles.menuItem} onPress={handleAppSettings}>
               <View style={[styles.menuIcon, styles.menuIconPrimary]}>
                 <Text style={styles.iconText}>⚙️</Text>
               </View>
@@ -104,6 +291,7 @@ export default function ProfileScreen({ onBack, onLogout }) {
                 <Text style={styles.menuTitle}>App Settings</Text>
                 <Text style={styles.menuSubtitle}>Customize your experience</Text>
               </View>
+              <Text style={styles.arrowIcon}>›</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -112,7 +300,7 @@ export default function ProfileScreen({ onBack, onLogout }) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>SUPPORT</Text>
           <View style={styles.card}>
-            <TouchableOpacity style={styles.menuItem}>
+            <TouchableOpacity style={styles.menuItem} onPress={handleHelpCenter}>
               <View style={[styles.menuIcon, styles.menuIconAccent]}>
                 <Text style={styles.iconText}>❓</Text>
               </View>
@@ -120,12 +308,13 @@ export default function ProfileScreen({ onBack, onLogout }) {
                 <Text style={styles.menuTitle}>Help Center</Text>
                 <Text style={styles.menuSubtitle}>FAQs and support</Text>
               </View>
+              <Text style={styles.arrowIcon}>›</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutIcon}>🚪</Text>
           <Text style={styles.logoutText}>Sign Out</Text>
         </TouchableOpacity>
@@ -201,6 +390,16 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 24,
     paddingTop: 24,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#666",
   },
   statsCard: {
     backgroundColor: "#fff",
@@ -291,6 +490,10 @@ const styles = StyleSheet.create({
   menuSubtitle: {
     fontSize: 14,
     color: "#666",
+  },
+  arrowIcon: {
+    fontSize: 24,
+    color: "#ccc",
   },
   divider: {
     height: 1,

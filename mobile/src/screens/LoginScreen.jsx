@@ -1,13 +1,77 @@
 import { useState } from "react"
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from "react-native"
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator } from "react-native"
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import { API_ENDPOINTS } from "../config/api"
 
 export default function LoginScreen({ onLogin, onNavigateToRegister }) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState({})
 
-  const handleSubmit = () => {
-    if (email && password) {
+  const validateForm = () => {
+    const newErrors = {}
+    
+    if (!email) {
+      newErrors.email = "Email is required"
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      newErrors.email = "Invalid email format"
+    }
+    
+    if (!password) {
+      newErrors.password = "Password is required"
+    } else if (password.length < 6) {
+      newErrors.password = "Password must be at least 6 characters"
+    }
+    
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      return
+    }
+
+    setLoading(true)
+    try {
+      console.log("🌐 API Request:", API_ENDPOINTS.LOGIN)
+      const response = await fetch(API_ENDPOINTS.LOGIN, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          password: password,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        Alert.alert("Login Failed", data.message || "Invalid email or password")
+        return
+      }
+
+      // Save token to device storage
+      if (data.token) {
+        await AsyncStorage.setItem("authToken", data.token)
+        await AsyncStorage.setItem("userEmail", email)
+      }
+
+      // Save user data if returned
+      if (data.user) {
+        await AsyncStorage.setItem("userData", JSON.stringify(data.user))
+      }
+
+      Alert.alert("Success", "Login successful!")
       onLogin()
+    } catch (error) {
+      Alert.alert("Error", error.message || "Something went wrong. Please try again.")
+      console.error("Login error:", error)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -40,39 +104,57 @@ export default function LoginScreen({ onLogin, onNavigateToRegister }) {
                 <View style={styles.fieldContainer}>
                   <Text style={styles.label}>Email</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, errors.email && styles.inputError]}
                     placeholder="you@example.com"
                     placeholderTextColor="#999"
                     value={email}
-                    onChangeText={setEmail}
+                    onChangeText={(text) => {
+                      setEmail(text)
+                      if (errors.email) setErrors({ ...errors, email: "" })
+                    }}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoComplete="email"
+                    editable={!loading}
                   />
+                  {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
                 </View>
 
                 <View style={styles.fieldContainer}>
                   <Text style={styles.label}>Password</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, errors.password && styles.inputError]}
                     placeholder="••••••••"
                     placeholderTextColor="#999"
                     value={password}
-                    onChangeText={setPassword}
+                    onChangeText={(text) => {
+                      setPassword(text)
+                      if (errors.password) setErrors({ ...errors, password: "" })
+                    }}
                     secureTextEntry
                     autoCapitalize="none"
+                    editable={!loading}
                   />
+                  {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
                 </View>
               </View>
 
               <View style={styles.forgotPasswordContainer}>
-                <TouchableOpacity>
+                <TouchableOpacity disabled={loading}>
                   <Text style={styles.forgotPasswordText}>Forgot password?</Text>
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity style={styles.signInButton} onPress={handleSubmit}>
-                <Text style={styles.signInButtonText}>Sign In</Text>
+              <TouchableOpacity 
+                style={[styles.signInButton, loading && styles.buttonDisabled]} 
+                onPress={handleSubmit}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.signInButtonText}>Sign In</Text>
+                )}
               </TouchableOpacity>
             </View>
 
@@ -87,6 +169,7 @@ export default function LoginScreen({ onLogin, onNavigateToRegister }) {
               <TouchableOpacity
                 style={styles.createAccountButton}
                 onPress={onNavigateToRegister}
+                disabled={loading}
               >
                 <Text style={styles.createAccountButtonText}>Create Account</Text>
               </TouchableOpacity>
@@ -187,6 +270,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#000",
   },
+  inputError: {
+    borderColor: "#FF3B30",
+  },
+  errorText: {
+    fontSize: 12,
+    color: "#FF3B30",
+    marginTop: 4,
+  },
   forgotPasswordContainer: {
     alignItems: "flex-end",
     marginBottom: 24,
@@ -206,6 +297,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   signInButtonText: {
     fontSize: 16,
