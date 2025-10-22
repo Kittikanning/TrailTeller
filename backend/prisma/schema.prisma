@@ -23,17 +23,76 @@ model User {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 }
-
 model Hotel {
-  hotel_id       Int @default(autoincrement()) @id 
-  guest_id       Int
-  room_id        String
-  name           String @unique
-  address        String @unique
-  cost           Int
-  check_in_date  DateTime @default(now())
-  check_out_date DateTime @default(now())
+  hotel_id        Int @default(autoincrement()) @id
+  trip_id         Int
+  guest_id        Int?
+  room_id         String?
+  name            String  @unique
+  address         String  @unique
+  cost            Int     
+  check_in_date   DateTime
+  check_out_date  DateTime
   number_of_guests Int
-  status         String
-  img            Bytes?   
+  status          String  @default("pending")
+  img             Bytes?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+}
+
+model Activity {
+   activities_id   Int     @default(autoincrement()) @id
+  trip_id         Int
+  activity_booking_id Int?
+  guest_id        Int?
+  activity_name   String
+  description     String?
+  location        String
+  schedule        DateTime
+  price           Int
+  status          String  @default("pending")
+  booking_time    DateTime @default(now())
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+}
+
+model Booking {
+    booking_id        Int     @default(autoincrement()) @id
+  trip_id           Int
+  user_id           Int
+  service_type      String  // "flight", "hotel", "activity"
+  booking_reference Int
+  booking_date      DateTime @default(now())
+  service_start     DateTime
+  service_end       DateTime
+  status            String  @default("pending") // "pending", "confirmed", "cancelled"
+  payment_method    String?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+}
+
+model Payment {
+  payment_id      Int     @default(autoincrement()) @id
+  booking_id      Int     @unique
+  amount          Int
+  payment_method  String
+  payment_status  String  @default("unpaid") // "unpaid", "paid", "refunded"
+  payment_date    DateTime @default(now())
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedA
+}
+
+model Recommendation {
+  recommendation_id Int     @default(autoincrement()) @id
+  user_id           Int
+  destination_id    Int?
+  trip_id           Int?
+  budget            Int
+  recommend_type    String  // "flight", "hotel", "activity", "restaurant"
+  item_id           Int?
+  item_name         String
+  item_price        Int
+  recommendation_date DateTime @default(now())
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
 }
