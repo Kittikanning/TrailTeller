@@ -2,18 +2,22 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
-import { HotelModule } from './hotel/hotel.module';
-import { BookingModule } from './booking/booking.module';
-import { TripModule } from './trip/trip.module';
-import { RecommendationModule } from './recommendation/recommendation.module';
-import { PaymentModule } from './payment/payment.module';
-import { BookingModule } from './booking/booking.module';
-import { ActivityModule } from './activity/activity.module';
-import { HotelModule } from './hotel/hotel.module';
-import { TripModule } from './trip/trip.module';
+import { HotelsModule } from './hotels/hotels.module';
+import { ActivitiesModule } from './activities/activities.module';
+import { BooksModule } from './books/books.module';
+import { PaymentsModule } from './payments/payments.module';
+import { RecommendsModule } from './recommends/recommends.module';
 
 @Module({
-  imports: [UsersModule, HotelModule, BookingModule, TripModule, ActivityModule, PaymentModule, RecommendationModule],
+  imports: [
+    UsersModule,
+    ActivitiesModule,
+    HotelsModule,
+    ActivitiesModule,
+    BooksModule,
+    PaymentsModule,
+    RecommendsModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

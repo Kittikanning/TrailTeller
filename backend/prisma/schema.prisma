@@ -24,24 +24,24 @@ model User {
   updated_at DateTime @updatedAt
 }
 model Hotel {
-  hotel_id        Int @default(autoincrement()) @id
-  trip_id         Int
-  guest_id        Int?
-  room_id         String?
-  name            String  @unique
-  address         String  @unique
-  cost            Int     
+  hotel_id Int @default(autoincrement()) @id
+  trip_id Int
+  guest_id Int?
+  room_id String?
+  name   String  @unique
+  address  String  @unique
+  cost  Int     
   check_in_date   DateTime
   check_out_date  DateTime
   number_of_guests Int
-  status          String  @default("pending")
-  img             Bytes?
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  status   String  @default("pending")
+  img      Bytes?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 }
 
 model Activity {
-   activities_id   Int     @default(autoincrement()) @id
+  activities_id   Int  @default(autoincrement()) @id
   trip_id         Int
   activity_booking_id Int?
   guest_id        Int?
@@ -57,7 +57,7 @@ model Activity {
 }
 
 model Booking {
-    booking_id        Int     @default(autoincrement()) @id
+  booking_id        Int     @default(autoincrement()) @id
   trip_id           Int
   user_id           Int
   service_type      String  // "flight", "hotel", "activity"
@@ -72,18 +72,18 @@ model Booking {
 }
 
 model Payment {
-  payment_id      Int     @default(autoincrement()) @id
-  booking_id      Int     @unique
+  payment_id      Int  @default(autoincrement()) @id
+  booking_id      Int  @unique
   amount          Int
   payment_method  String
   payment_status  String  @default("unpaid") // "unpaid", "paid", "refunded"
   payment_date    DateTime @default(now())
   created_at      DateTime @default(now())
-  updated_at      DateTime @updatedA
+  updated_at      DateTime @default(now())
 }
 
 model Recommendation {
-  recommendation_id Int     @default(autoincrement()) @id
+  recommendation_id Int @default(autoincrement()) @id
   user_id           Int
   destination_id    Int?
   trip_id           Int?
