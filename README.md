@@ -21,7 +21,7 @@ This is the recommended method as the project is already configured with Docker.
 First, clone the project to your local machine and navigate into the directory:
 
 ```sh
-git clone [https://github.com/jemiezler/trail-teller.git](https://github.com/jemiezler/trail-teller.git)](https://github.com/Kittikanning/TrailTeller.git)
+git clone 
 cd trail-teller
 ```
 
