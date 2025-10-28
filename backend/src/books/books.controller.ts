@@ -26,7 +26,7 @@ export class BooksController {
     return await this.BooksService.books({
       skip: skip ? Number(skip) : undefined,
       take: take ? Number(take) : undefined,
-      cursor: cursor ? { booking_id: cursor } : undefined,
+      cursor: cursor ? { id: cursor } : undefined,
     });
   }
 
@@ -34,7 +34,9 @@ export class BooksController {
   @Get(':id')
   // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
   async getBooking(@Param('id') id: number): Promise<Booking | null> {
-    return await this.BooksService.booking({ booking_id: Number(id) });
+    return await this.BooksService.booking({
+      id: Number(id),
+    });
   }
 
   // POST /books
@@ -42,6 +44,7 @@ export class BooksController {
   async createBooking(
     @Body() data: Prisma.BookingCreateInput,
   ): Promise<Booking> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return this.BooksService.createBooking(data);
   }
 
@@ -52,7 +55,7 @@ export class BooksController {
     @Body() data: Prisma.BookingUpdateInput,
   ): Promise<Booking> {
     return this.BooksService.updateBooking({
-      where: { booking_id: Number(id) },
+      where: { id: Number(id) },
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       data,
     });
@@ -61,6 +64,6 @@ export class BooksController {
   // DELETE /books/:id
   @Delete(':id')
   async deleteBooking(@Param('id') id: number): Promise<Booking> {
-    return this.BooksService.deleteBooking({ booking_id: Number(id) });
+    return this.BooksService.deleteBooking({ id: Number(id) });
   }
 }

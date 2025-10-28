@@ -37,7 +37,7 @@ export class HotelsController {
     return await this.HotelsService.hotel({ hotel_id: Number(id) });
   }
 
-  // POST /users
+  // POST /hotels
   @Post()
   async createHotel(@Body() data: Prisma.HotelCreateInput): Promise<Hotel> {
     return this.HotelsService.createHotel(data);
