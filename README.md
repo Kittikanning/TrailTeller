@@ -115,14 +115,14 @@ If you prefer not to use Docker, you can try to run the backend service directly
     ```
 
 After cloning, in the backend folder, delete these duplicate/generated folders to avoid conflicts:
+  ```
+backend/activity/
+backend/booking/
+backend/hotel/
+backend/payment/
+backend/recommendation/
+ ```
 
-┌────────────────────────────┐
-│ backend/activity/          │
-│ backend/booking/           │
-│ backend/hotel/             │
-│ backend/payment/           │
-│ backend/recommendation/    │
-└────────────────────────────┘
 
 
 This [Docker Compose for Beginners](https://www.youtube.com/watch?v=KQUiICpM_u0) video may be helpful as it explains how to use `docker-compose.yml` files to run services, which is central to this project's setup.
