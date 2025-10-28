@@ -38,6 +38,7 @@ export class UsersController {
   // POST /users
   @Post()
   async createUser(@Body() data: Prisma.UserCreateInput): Promise<User> {
+    console.log('Creating user with data:', data);
     return this.usersService.createUser(data);
   }
 

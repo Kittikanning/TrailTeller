@@ -16,10 +16,10 @@ datasource db {
 
 model User {
   id Int @default(autoincrement()) @id
-  name String @unique
-  email String @unique
+  name String?
+  email String?
   password String
-  phone String
+  phone String?
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 }
@@ -57,29 +57,51 @@ model Activity {
 }
 
 model Booking {
-  booking_id        Int     @default(autoincrement()) @id
-  trip_id           Int
-  user_id           Int
-  service_type      String  // "flight", "hotel", "activity"
-  booking_reference Int
-  booking_date      DateTime @default(now())
-  service_start     DateTime
-  service_end       DateTime
-  status            String  @default("pending") // "pending", "confirmed", "cancelled"
-  payment_method    String?
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  id               Int       @id @default(autoincrement())
+  user_id          String
+  trip_id          BigInt
+  service_type     String
+  origin           String    @default("unknown")
+  destination      String    @default("unknown")
+  service_start    DateTime  @default(now())
+  service_end      DateTime  @default(now())
+  travelers        Int       @default(1)
+  budget           Int       @default(0)
+  preferences      String?
+  status           String
+  payment_method   String?
+  booking_reference BigInt?
+  booking_date     DateTime?
+  created_at       DateTime? @default(now())
+  updated_at       DateTime? @updatedAt
+
+  payments         Payment[]  @relation("BookingPayments")
 }
 
 model Payment {
-  payment_id      Int  @default(autoincrement()) @id
-  booking_id      Int  @unique
-  amount          Int
-  payment_method  String
-  payment_status  String  @default("unpaid") // "unpaid", "paid", "refunded"
-  payment_date    DateTime @default(now())
-  created_at      DateTime @default(now())
-  updated_at      DateTime @default(now())
+  payment_id      Int      @id @default(autoincrement())
+  userId          String
+  amount          Int      @default(0)
+  paymentMethod   String   @default("")
+  hotelName       String   @default("")
+  destination     String   @default("")
+  checkIn         String
+  checkOut        String
+  nights          Int      @default(1)
+  hotelPrice      Int      @default(0)
+  flightPrice     Int      @default(0)
+  outboundFlight  String   @default("")
+  returnFlight    String   @default("")
+  todoList        String[]
+  dailyActivities Json     @default("{}")
+
+  bookingId       Int?  // ← optional
+  booking         Booking? @relation("BookingPayments", fields: [bookingId], references: [id])  // ← เพิ่ม ?
+
+  paymentStatus   String?
+  paymentDate     DateTime?
+  createdAt       DateTime? @default(now())
+  updatedAt       DateTime? @updatedAt
 }
 
 model Recommendation {

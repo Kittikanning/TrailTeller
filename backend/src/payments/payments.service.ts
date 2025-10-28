@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/core/prisma.service';
-import { Prisma, Payment } from 'generated/prisma';
+import { Payment, Prisma } from 'generated/prisma';
 
 @Injectable()
 export class PaymentsService {
@@ -9,7 +9,7 @@ export class PaymentsService {
   async payment(
     paymentWhereUniqueInput: Prisma.PaymentWhereUniqueInput,
   ): Promise<Payment | null> {
-    return await this.prisma.payment.findUnique({
+    return this.prisma.payment.findUnique({
       where: paymentWhereUniqueInput,
     });
   }

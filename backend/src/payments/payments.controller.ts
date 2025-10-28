@@ -22,7 +22,7 @@ export class PaymentsController {
     @Query('take') take?: string,
     @Query('cursor') cursor?: number,
   ): Promise<Payment[]> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
     return this.PaymentsService.payments({
       skip: skip ? Number(skip) : undefined,
       take: take ? Number(take) : undefined,
@@ -34,7 +34,10 @@ export class PaymentsController {
   @Get(':id')
   // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
   async getPayment(@Param('id') id: number): Promise<Payment | null> {
-    return await this.PaymentsService.payment({ payment_id: Number(id) });
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call
+    return await this.PaymentsService.payment({
+      payment_id: Number(id),
+    });
   }
 
   // POST /payments
@@ -42,7 +45,7 @@ export class PaymentsController {
   async createPayment(
     @Body() data: Prisma.PaymentCreateInput,
   ): Promise<Payment> {
-    return this.PaymentsService.createPayment(data);
+    return await this.PaymentsService.createPayment(data);
   }
 
   // PATCH /payments/:id
@@ -61,6 +64,8 @@ export class PaymentsController {
   // DELETE /payments/:id
   @Delete(':id')
   async deletePayment(@Param('id') id: number): Promise<Payment> {
-    return this.PaymentsService.deletePayment({ payment_id: Number(id) });
+    return this.PaymentsService.deletePayment({
+      payment_id: Number(id),
+    });
   }
 }
