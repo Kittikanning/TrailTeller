@@ -7,13 +7,47 @@ import {
   Param,
   Body,
   Query,
+  Logger,
 } from '@nestjs/common';
 import { RecommendsService } from './recommends.service';
 import { Prisma, Recommendation } from 'generated/prisma';
 
+class GenerateAiRecommendationsDto {
+  user_id: number;
+  origin: string;
+  destination: string;
+  startDate: string;
+  endDate: string;
+  travelers: number;
+  budget: number;
+  preferences: string;
+  trip_id?: number;
+}
+
 @Controller('recommends')
 export class RecommendsController {
+  private readonly logger = new Logger(RecommendsController.name);
+
   constructor(private readonly RecommendsService: RecommendsService) {}
+
+  @Post('ai/generate')
+  async generateAiRecommendations(@Body() dto: GenerateAiRecommendationsDto) {
+    try {
+      this.logger.log(`AI recommendation request from user ${dto.user_id}`);
+      
+      const result = await this.RecommendsService.generateRecommendations(dto);
+      
+      return result;
+    } catch (error) {
+      this.logger.error('❌ Error in generateAiRecommendations:', error.message);
+      
+      return {
+        success: false,
+        message: 'Failed to generate AI recommendations',
+        error: error.message,
+      };
+    }
+  }
 
   // GET /recommends?skip=0&take=10
   @Get()
@@ -30,7 +64,7 @@ export class RecommendsController {
     });
   }
 
-  // GET /reccommends/:id
+  // GET /recommends/:id
   @Get(':id')
   // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
   async getRecommendation(
@@ -62,7 +96,7 @@ export class RecommendsController {
     });
   }
 
-  // DELETE /precommends/:id
+  // DELETE /recommends/:id
   @Delete(':id')
   async deleteRecommendation(@Param('id') id: number): Promise<Recommendation> {
     return this.RecommendsService.deleteRecommendation({
