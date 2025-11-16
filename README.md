@@ -1,4 +1,4 @@
-# Trail Teller
+## Trail Teller
 
 This project appears to be a web application built with TypeScript and Node.js, set up to run using Docker. This guide will walk you through setting up your local development environment.
 
