@@ -7,16 +7,17 @@ import { ActivitiesModule } from './activities/activities.module';
 import { BooksModule } from './books/books.module';
 import { PaymentsModule } from './payments/payments.module';
 import { RecommendsModule } from './recommends/recommends.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
     UsersModule,
     ActivitiesModule,
     HotelsModule,
-    ActivitiesModule,
     BooksModule,
     PaymentsModule,
     RecommendsModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [AppService],
